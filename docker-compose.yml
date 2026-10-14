@@ -1,0 +1,35 @@
+services:
+  caddy:                     # automatic HTTPS (Let's Encrypt)
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: [DOMAIN]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile", "caddy_data:/data"]
+    depends_on: [web, server]
+  web:
+    build: ./web
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  server:
+    build: ./server
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    cap_drop: [ALL]
+    tmpfs: [/tmp]
+    environment:
+      CLIENT_ORIGIN: https://${DOMAIN}
+      TURN_URL: turn:${DOMAIN}:3478
+      TURN_SECRET: ${TURN_SECRET}
+      ACCESS_KEY: ${ACCESS_KEY}
+      DATA_FILE: /app/data/rooms.json
+    volumes: ["rooms:/app/data"]
+  coturn:                    # TURN relay so video works across any network
+    image: coturn/coturn
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      -n --log-file=stdout --fingerprint --no-cli --use-auth-secret
+      --static-auth-secret=${TURN_SECRET} --realm=${DOMAIN}
+      --listening-port=3478 --min-port=49160 --max-port=49200 --external-ip=${PUBLIC_IP}
+volumes: { caddy_data: {}, rooms: {} }

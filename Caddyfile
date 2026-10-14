@@ -1,0 +1,10 @@
+{$DOMAIN} {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	@api path /socket.io/* /peerjs/* /api/* /health
+	reverse_proxy @api server:4000
+	reverse_proxy web:3000
+}
